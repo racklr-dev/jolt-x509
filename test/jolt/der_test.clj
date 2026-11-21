@@ -1,8 +1,7 @@
 ;; DER encode/decode known-answer + round-trip tests.
 ;; Run: cd mtc && jolt run test/mtc/der_test.clj
 (ns jolt.test.der
-  (:require [jolt.der :as der]
-            [jolt.merkle :as m]))
+  (:require [jolt.der :as der]))
 
 (defn hex [b] (apply str (map (fn [x] (format "%02x" (bit-and x 0xff))) b)))
 
@@ -22,13 +21,19 @@
 (check "OID id-alg-mtcProof" "06082b06010505070643" (hex (der/encode [:oid [1 3 6 1 5 5 7 6 67]])))
 (check "SEQUENCE" "30050201000500" (hex (der/encode [:seq [:int 0] [:null]])))
 
+(defn bytes= [a b]
+  (and (= (alength a) (alength b))
+       (every? identity
+               (map (fn [i] (= (bit-and (aget a i) 0xFF) (bit-and (aget b i) 0xFF)))
+                    (range (alength a))))))
+
 (defn der= [a b]
   (if (and (vector? a) (vector? b))
     (let [tag (first a)]
       (and (= tag (first b))
            (case tag
-             :octets (m/bytes= (second a) (second b))
-             :ctx* (and (= (second a) (second b)) (m/bytes= (nth a 2) (nth b 2)))
+             :octets (bytes= (second a) (second b))
+             :ctx* (and (= (second a) (second b)) (bytes= (nth a 2) (nth b 2)))
              :ctx (der= (nth a 2) (nth b 2))
              :seq (and (= (count a) (count b))
                        (every? identity (map der= (rest a) (rest b))))
